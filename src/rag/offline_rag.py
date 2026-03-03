@@ -1,5 +1,5 @@
 import re
-from langchain import hub
+from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
@@ -24,23 +24,50 @@ class Str_OutputParser(StrOutputParser):
 class Offline_RAG:
     def __init__(self, llm) -> None:
         self.llm = llm
-        self.prompt = hub.pull("rlm/rag-prompt")
+        template = """
+        Bạn là chuyên gia pháp lý về Luật Lao động Việt Nam.
+
+        Chỉ được trả lời dựa trên nội dung trong phần NGỮ CẢNH.
+        Nếu không tìm thấy thông tin, trả lời đúng câu sau:
+        "Không tìm thấy thông tin trong Luật Lao động hiện hành."
+
+        Yêu cầu:
+        - Trả lời rõ ràng, ngắn gọn
+        - Phải trích dẫn Điều luật nếu có
+        - Không tự suy luận ngoài tài liệu
+
+        NGỮ CẢNH:
+        {context}
+
+        CÂU HỎI:
+        {question}
+
+        Answer:
+        """
+
+        self.prompt = PromptTemplate.from_template(template)
         self.str_parser = Str_OutputParser()
         
     def get_chain(self, retriever):
-        input_data = {
-            "context": retriever | self.format_docs,
-            "question": RunnablePassthrough()
-        }
-        
+
+        def get_context(question):
+            docs = retriever.invoke(question)
+            return docs
+
         rag_chain = (
-            input_data
+            RunnablePassthrough.assign(
+                context=lambda x: retriever.invoke(x),
+                question=lambda x: x
+            )
             | self.prompt
             | self.llm
-            | self.str_parser
         )
-        
+
         return rag_chain
     
     def format_docs(self, docs):
-        return "\n\n".join(doc.page_content for doc in docs)
+        formatted = []
+        for doc in docs:
+            dieu = doc.metadata.get("dieu", "N/A")
+            formatted.append(f"[Điều {dieu}]\n{doc.page_content}")
+        return "\n\n".join(formatted)

@@ -3,7 +3,8 @@ import glob
 from tqdm import tqdm
 import multiprocessing
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+import re
+from langchain.schema import Document
 
 def remove_non_utf8_characters(text):
     return ''.join(char for char in text if ord(char)<128)
@@ -40,20 +41,42 @@ class PDFLoader(BaseLoader):
         return doc_loader
     
 class TextSplitter:
-    def __init__(self,
-                 separators: List[str] = ['\n\n', '\n', ' ', ''],
-                 chunk_size: int = 300,
-                 chunk_overlap: int = 0
-                 ) -> None:
-        
-        self.splitter = RecursiveCharacterTextSplitter(
-            separators=separators,
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap
-        )
-        
+    def __init__(self):
+        pass
+
+    def split_by_article(self, documents):
+        split_docs = []
+
+        for doc in documents:
+            text = doc.page_content
+
+            # Regex tách theo Điều X.
+            pattern = r"(Điều\s+\d+[\.\:][\s\S]*?)(?=Điều\s+\d+[\.\:]|$)"
+            matches = re.findall(pattern, text)
+
+            if not matches:
+                split_docs.append(doc)
+                continue
+
+            for match in matches:
+                dieu_match = re.search(r"Điều\s+(\d+)", match)
+                dieu_number = dieu_match.group(1) if dieu_match else "unknown"
+
+                split_docs.append(
+                    Document(
+                        page_content=match.strip(),
+                        metadata={
+                            **doc.metadata,
+                            "dieu": dieu_number,
+                            "domain": "labor_law"
+                        }
+                    )
+                )
+
+        return split_docs
+
     def __call__(self, documents):
-        return  self.splitter.split_documents(documents)
+        return self.split_by_article(documents)
     
 class Loader:
     def __init__(self,
@@ -69,7 +92,7 @@ class Loader:
         else:
             raise ValueError("file_typr must be pdf")
         
-        self.doc_splitter = TextSplitter(**split_kwargs)
+        self.doc_splitter = TextSplitter()
         
     def load(self, pdf_files: Union[str, List[str]], workers: int = 1):
         if isinstance(pdf_files,str):

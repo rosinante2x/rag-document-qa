@@ -24,9 +24,9 @@ genai_chain = build_rag_chain(llm, data_dir=genai_docs, data_type="pdf")
 #-----------App - FastAPI----------
 
 app = FastAPI(
-    title="Langchain Server",
+    title="Vietnam Labor Law RAG System",
     version=1.0,
-    description="A simple api server using Langchain's Runnable interfaces",
+    description="Legal-domain Retrieval-Augmented Generation system for Vietnamese Labor Law",
 )
 
 app.add_middleware(
@@ -45,10 +45,16 @@ async def check():
     return {"status": "ok"}
 
 
-@app.post("/generative_ai", response_model=OutputQA)
+@app.post("/generative_ai")
 async def generative_ai(inputs: InputQA):
-    answer = genai_chain.invoke(inputs.question)
-    return {"answer": answer}
+    docs = genai_chain.invoke(inputs.question)
+
+    answer_text = docs.content if hasattr(docs, "content") else str(docs)
+
+    return {
+        "answer": answer_text,
+        "note": "Citations are embedded inside the answer."
+    }
 
 #----------Langserve Routes - Playground--------
 add_routes(app,
