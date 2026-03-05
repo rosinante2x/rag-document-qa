@@ -5,9 +5,6 @@ from src.rag.vectorstore import VectorDB
 from src.rag.offline_rag import Offline_RAG
 
 
-# -------------------------------
-# Input / Output Models
-# -------------------------------
 class InputQA(BaseModel):
     question: str = Field(..., title="Question to ask the model")
 
@@ -20,9 +17,6 @@ class OutputQA(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-# -------------------------------
-# RAG Chain Builder
-# -------------------------------
 def build_rag_chain(llm, data_dir, data_type):
     # Load documents
     doc_loaded = Loader(file_type=data_type).load_dir(data_dir, workers=2)

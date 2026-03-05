@@ -12,7 +12,7 @@ class LLM_Model:
             raise ValueError("Không tìm thấy GEMINI_API_KEY. Vui lòng kiểm tra file .env!")
             
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-3.1-flash-lite-preview", # Hoặc model bạn đang dùng
+            model="gemini-3.1-flash-lite-preview",
             google_api_key=api_key,
             temperature=0.1
         )
