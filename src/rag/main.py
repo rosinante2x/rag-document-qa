@@ -11,14 +11,12 @@ from src.rag.offline_rag import Offline_RAG
 class InputQA(BaseModel):
     question: str = Field(..., title="Question to ask the model")
 
-    # ✅ Cho phép kiểu tùy ý (fix lỗi BaseMessage)
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class OutputQA(BaseModel):
     answer: str = Field(..., title="Answer from the model")
 
-    # ✅ Cho phép kiểu tùy ý
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 

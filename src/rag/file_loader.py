@@ -4,15 +4,14 @@ from tqdm import tqdm
 import multiprocessing
 from langchain_community.document_loaders import PyPDFLoader
 import re
-from langchain.schema import Document
+import os
+from langchain_core.documents import Document
 
-def remove_non_utf8_characters(text):
-    return ''.join(char for char in text if ord(char)<128)
+# def remove_non_utf8_characters(text):
+#     return ''.join(char for char in text if ord(char)<128)
 
 def load_pdf(pdf_file):
     docs = PyPDFLoader(pdf_file, extract_images=False).load()
-    for doc in docs:
-        doc.page_content = remove_non_utf8_characters(doc.page_content)
     return docs
 
 def get_num_cpu():
@@ -30,8 +29,8 @@ class PDFLoader(BaseLoader):
         super().__init__()
         
     def __call__(self, pdf_files: List[str], **kwargs):
-        num_precesses = min(self.num_processes, kwargs["workers"])
-        with multiprocessing.Pool(processes=num_precesses) as pool:
+        num_processes = min(self.num_processes, kwargs["workers"])
+        with multiprocessing.Pool(processes=num_processes) as pool:
             doc_loader = []
             total_files = len(pdf_files)
             with tqdm(total=total_files, desc="Loading PDFs", unit="file") as pbar:
@@ -50,9 +49,8 @@ class TextSplitter:
         for doc in documents:
             text = doc.page_content
 
-            # Regex tách theo Điều X.
             pattern = r"(Điều\s+\d+[\.\:][\s\S]*?)(?=Điều\s+\d+[\.\:]|$)"
-            matches = re.findall(pattern, text)
+            matches = re.findall(pattern, text, flags=re.IGNORECASE)
 
             if not matches:
                 split_docs.append(doc)
@@ -61,6 +59,18 @@ class TextSplitter:
             for match in matches:
                 dieu_match = re.search(r"Điều\s+(\d+)", match)
                 dieu_number = dieu_match.group(1) if dieu_match else "unknown"
+                file_name = os.path.basename(doc.metadata.get("source", "")).lower()
+
+                if "lao_dong" in file_name:
+                    domain = "luat_lao_dong"
+                elif "hon_nhan" in file_name:
+                    domain = "luat_hon_nhan_gia_dinh"
+                elif "giao_thong" in file_name:
+                    domain = "luat_giao_thong"
+                elif "dan_su" in file_name:
+                    domain = "luat_dan_su"
+                else:
+                    domain = "luat_bhxh"
 
                 split_docs.append(
                     Document(
@@ -68,7 +78,7 @@ class TextSplitter:
                         metadata={
                             **doc.metadata,
                             "dieu": dieu_number,
-                            "domain": "labor_law"
+                            "domain": domain
                         }
                     )
                 )
@@ -82,8 +92,8 @@ class Loader:
     def __init__(self,
                  file_type: str = Literal["pdf"],
                  split_kwargs: dict = {
-                     "chunk_size": 300,
-                     "chunk_overlap": 0}
+                     "chunk_size": 800,
+                     "chunk_overlap": 100}
                  ) -> None:
         assert file_type in ["pdf"], "file_type must be pdf"
         self.file_type = file_type

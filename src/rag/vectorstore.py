@@ -15,8 +15,8 @@ class VectorDB:
     ) -> None:
         self.vector_db = vector_db
         self.embedding = embedding or HuggingFaceEmbeddings(
-            model_name="BAAI/bge-large-en-v1.5",
-            model_kwargs={"device": "cuda"},
+            model_name="keepitreal/vietnamese-sbert",
+            model_kwargs={"device": "cpu"},
             encode_kwargs={"normalize_embeddings": True},
 )
         self.db = self._build_db(documents)
@@ -42,7 +42,6 @@ class VectorDB:
                 ids=ids,
                 persist_directory="data_source/chroma_db",
             )
-            db.persist()
         else:
             db = self.vector_db.from_documents(
                 documents=fixed_docs,
@@ -54,13 +53,14 @@ class VectorDB:
 
     def get_retriever(
         self,
-        search_type: str = "similarity",
+        search_type: str = "mmr",
         search_kwargs: dict = None,
     ):
 
         if search_kwargs is None:
             search_kwargs = {
                 "k": 5,
+                "fetch_k": 20
             }
 
         return self.db.as_retriever(
@@ -68,21 +68,21 @@ class VectorDB:
             search_kwargs=search_kwargs,
         )
 
-@classmethod
-def load_existing(cls):
-    embedding = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-large-en-v1.5",
-        model_kwargs={"device": "cuda"},
-        encode_kwargs={"normalize_embeddings": True},
-    )
+    @classmethod
+    def load_existing(cls):
+        embedding = HuggingFaceEmbeddings(
+            model_name="keepitreal/vietnamese-sbert",
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True},
+        )
 
-    db = Chroma(
-        persist_directory="data_source/chroma_db",
-        embedding_function=embedding,
-    )
+        db = Chroma(
+            persist_directory="data_source/chroma_db",
+            embedding_function=embedding,
+        )
 
-    obj = cls.__new__(cls)
-    obj.db = db
-    obj.embedding = embedding
-    obj.vector_db = Chroma
-    return obj
+        obj = cls.__new__(cls)
+        obj.db = db
+        obj.embedding = embedding
+        obj.vector_db = Chroma
+        return obj
